@@ -1,0 +1,44 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download built ISO and checksums (from build workflow)
+        uses: actions/download-artifact@v4
+        with:
+          name: devloka-iso
+          path: artifacts/
+
+      - name: Download checksums
+        uses: actions/download-artifact@v4
+        with:
+          name: checksums
+          path: artifacts/
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Devloka Omega ${{ github.ref_name }}
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'preview') }}
+          files: |
+            artifacts/*.iso
+            artifacts/SHA256SUMS*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Anchor release on Ethereum (optional)
+        if: secrets.ETH_PRIVATE_KEY != ''
+        run: |
+          echo "Blockchain anchoring not yet implemented."

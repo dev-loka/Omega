@@ -1,0 +1,64 @@
+name: Build Devloka ISO
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 0.1-preview)'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y xorriso isolinux genisoimage curl wget
+
+      - name: Download Ubuntu base ISO
+        run: |
+          wget https://releases.ubuntu.com/24.04.2/ubuntu-24.04.2-desktop-amd64.iso
+          echo "8c5fc24894394035402f66f3344a0fad8f7d4f9a3f9d8e7d6f5c4b3a2a1b0c9d  ubuntu-24.04.2-desktop-amd64.iso" | sha256sum -c
+
+      - name: Customize ISO with overlays
+        run: |
+          mkdir -p iso-mnt iso-custom
+          sudo mount -o loop ubuntu-24.04.2-desktop-amd64.iso iso-mnt
+          rsync -a iso-mnt/ iso-custom/
+          sudo umount iso-mnt
+          # Apply overlay files from iso-profiles/overlay
+          cp -r iso-profiles/overlay/* iso-custom/
+          # Modify isolinux.cfg to add custom boot options
+          echo "default install" >> iso-custom/isolinux/txt.cfg
+          # Repack ISO
+          sudo xorriso -as mkisofs -r -V "Devloka Omega" \
+            -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat \
+            -no-emul-boot -boot-load-size 4 -boot-info-table \
+            -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot \
+            -isohybrid-gpt-basdat -isohybrid-apm-hfsplus \
+            -o devloka-omega-${{ github.event.inputs.version || github.ref_name }}.iso iso-custom/
+
+      - name: Generate checksums
+        run: |
+          sha256sum devloka-*.iso > SHA256SUMS
+          gpg --clearsign SHA256SUMS
+
+      - name: Upload ISO as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: devloka-iso
+          path: devloka-*.iso
+          if-no-files-found: error
+
+      - name: Upload checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums
+          path: SHA256SUMS*

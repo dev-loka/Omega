@@ -1,0 +1,2 @@
+# This file exists to ensure the cli/ directory is tracked by Git
+# Actual CLI implementation will be added here in future development
