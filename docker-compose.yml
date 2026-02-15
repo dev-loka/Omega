@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # DEVLOKA OMEGA - Next.js Application
+  omega-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: devloka-omega-ui
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - OLLAMA_API_URL=http://ollama:11434
+      - CHROMA_API_URL=http://chromadb:8000
+    depends_on:
+      - ollama
+      - chromadb
+    networks:
+      - omega-network
+    restart: unless-stopped
+
+  # Ollama - Local LLM Server
+  ollama:
+    image: ollama/ollama:latest
+    container_name: devloka-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - omega-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # ChromaDB - Vector Database
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: devloka-chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma-data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    networks:
+      - omega-network
+    restart: unless-stopped
+
+  # Redis - Session & Cache Store
+  redis:
+    image: redis:7-alpine
+    container_name: devloka-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - omega-network
+    restart: unless-stopped
+
+  # PostgreSQL - Audit Logs & Tamper-Proof Storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: devloka-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=omega_audit
+      - POSTGRES_USER=omega
+      - POSTGRES_PASSWORD=changeme_in_production
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - omega-network
+    restart: unless-stopped
+
+networks:
+  omega-network:
+    driver: bridge
+
+volumes:
+  ollama-data:
+  chroma-data:
+  redis-data:
+  postgres-data:
