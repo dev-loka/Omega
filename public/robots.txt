@@ -1,0 +1,16 @@
+# Ω DEVLOKA OMEGA ROBOTS PROTOCOL
+User-agent: *
+Allow: /
+Allow: /academy
+Allow: /omega-black
+Allow: /federal
+Disallow: /api/
+Disallow: /admin/
+Disallow: /_next/
+
+# Sitemaps for faster indexing
+Sitemap: https://devloka.ai/sitemap.xml
+
+# Block known aggressive AI scrapers to preserve bandwidth
+User-agent: CCBot
+Disallow: /
